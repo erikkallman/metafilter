@@ -34,8 +34,8 @@ This project provides a pipeline to process ERA5-Land meteorological data, retri
    cd metafilter
 
    # Create and activate a virtual environment
-   conda create -n sentinel-env python=3.9 -y
-   conda activate sentinel-env
+   conda create -n metafilter-env python=3.12 -y
+   conda activate metafilter-env
 
    # Install required Python packages
    pip install -r requirements.txt
