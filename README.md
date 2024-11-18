@@ -93,16 +93,16 @@ python main.py
 │   ├── era5/                  # ERA5-Land weather data
 │   └── sentinel/              # Placeholder for Sentinel imagery (if downloaded)
 ├── main.py                    # Main entry point for the project
-├── notebooks/                 # Optional Jupyter notebooks for experimentation
 ├── requirements.txt           # Required Python dependencies
 ├── scripts/                   # Core functionality scripts
 │   ├── download_era5.py       # Downloads ERA5-Land data
 │   ├── process_era5.py        # Processes ERA5 data to filter dates
 │   ├── search_sentinel.py     # Queries Sentinel-2 metadata
 │   └── visualize.py           # Generates interactive maps
+├── filters/                   # Stores JSON filters used in the processing
+│   └── metafilter.json        # An example metadata filter JSON
 └── utils/                     # Utility scripts and configurations
-    ├── config.py              # Configuration file for API credentials and settings
-    └── geo_utils.py           # Placeholder for additional geospatial utilities
+    └── config.py              # Configuration file for API credentials and settings
 ```
 
 ---
