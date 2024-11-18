@@ -43,9 +43,10 @@ This project provides a pipeline to process ERA5-Land meteorological data, retri
 
 3. **Configure Your Environment**:
    - Update the following values in `utils/config.py`:
+     - `AREA`: The geographical bounding box of the area of interest (northern half of Sweden by default).
+   - Add the following to a `.env` file in project root:
      - `DATASPACE_USERNAME`: Your Copernicus Data Space Ecosystem username.
      - `DATASPACE_PASSWORD`: Your Copernicus Data Space Ecosystem password.
-     - `AREA`: The geographical bounding box of the area of interest (northern half of Sweden by default).
 
 ---
 
