@@ -72,7 +72,7 @@ python main.py
    - Connects to the Copernicus Data Space Ecosystem to fetch Sentinel-2 metadata for the filtered dates.
 
 4. **Visualize Sentinel-2 Footprints**:
-   - Generates an interactive map (`sentinel_results_map.html`) displaying the footprints of the retrieved Sentinel-2 products.
+   - Generates an interactive map (`metafilter_results_map.html`) displaying the footprints of the retrieved Sentinel-2 products.
 
 ---
 
@@ -82,7 +82,7 @@ python main.py
   - Prints metadata for the retrieved Sentinel-2 products, including IDs, names, and timestamps.
 
 - **Generated Map**:
-  - Outputs an interactive map file: `sentinel_results_map.html`.
+  - Outputs an interactive map file: `metafilter_results_map.html`.
   - Open the file in a browser to view the Sentinel-2 footprints over the area of interest.
 
 ---
