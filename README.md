@@ -4,6 +4,8 @@
 
 This project provides a pipeline to process ERA5-Land meteorological data, retrieve relevant Sentinel-2 satellite imagery metadata from the Copernicus Data Space Ecosystem, and visualize the results on an interactive map. The project aims to identify satellite imagery for specific weather conditions over a specified area of interest and render the footprints of these products geographically.
 
+Essentially it is a demonstration of how metereological metadata can be used to filter satellite data series where optimal weather conditions might yield dataseries of, for instance, Sentinel 2 L2A data of good quality with respect to cloud cover, etc.
+
 ---
 
 ## Features
