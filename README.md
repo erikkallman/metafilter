@@ -12,7 +12,7 @@ This project provides a pipeline to process ERA5-Land meteorological data, retri
    - Uses the CDSAPI to fetch ERA5-Land weather data for a specified time period and area.
 
 2. **Process ERA5 Data**:
-   - Extracts dates that meet specific weather criteria (e.g., temperature thresholds and precipitation levels).
+   - Extracts dates that meet specific weather criteria (e.g., temperature thresholds and precipitation levels). This uses a predefined filter in JSON format (see filters/metafilter.json).
 
 3. **Authenticate and Query Sentinel-2 Metadata**:
    - Retrieves Sentinel-2 metadata for the selected dates and area of interest using the Copernicus Data Space Ecosystem's OData API.

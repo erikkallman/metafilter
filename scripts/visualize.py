@@ -59,8 +59,8 @@ def visualize_sentinel_results(products):
     folium.LayerControl().add_to(m)
 
     # Save the map to an HTML file
-    m.save("sentinel_results_map.html")
-    print("Map saved to sentinel_results_map.html")
+    m.save("metafilter_results_map.html")
+    print("Map saved to metafilter_results_map.html")
 
 if __name__ == "__main__":
     # Example: Mock data for products
