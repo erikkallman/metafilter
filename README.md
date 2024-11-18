@@ -1,4 +1,4 @@
-# Sentinel Data Visualization Project
+# Metafilter
 
 ## Overview
 
