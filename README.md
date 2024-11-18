@@ -89,6 +89,7 @@ python main.py
 ```plaintext
 .
 ├── README.md                  # Project overview (this file)
+├── LICENSE                    # MIT license file
 ├── data/                      # Stores ERA5 and Sentinel data
 │   ├── era5/                  # ERA5-Land weather data
 │   └── sentinel/              # Placeholder for Sentinel imagery (if downloaded)
