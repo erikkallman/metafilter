@@ -1,0 +1,15 @@
+cdsapi
+xarray
+numpy
+pandas
+matplotlib
+sentinelsat
+rasterio
+geopandas
+requests
+h5netcdf
+netCDF4
+folium
+geopandas
+shapely
+python-dotenv

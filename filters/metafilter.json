@@ -1,0 +1,12 @@
+{
+  "temperature": {
+    "threshold": 20.0,
+    "unit": "Celsius",
+    "description": "Daily mean temperature above this value will be selected."
+  },
+  "precipitation": {
+    "threshold": 1.0,
+    "unit": "mm/day",
+    "description": "Daily total precipitation below this value will be selected."
+  }
+}
