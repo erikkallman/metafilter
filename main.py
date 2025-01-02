@@ -6,7 +6,7 @@ from scripts.download_era5 import download_era5_land
 from scripts.process_era5 import process_era5_data, load_metafilter_parameters
 from scripts.search_sentinel import authenticate, search_sentinel_data
 from scripts.visualize import visualize_sentinel_results
-from utils.config import DATASPACE_USERNAME, DATASPACE_PASSWORD, AREA
+from utils.config import username, password, AREA, eo_service_url
 
 def main():
     # Step 1: Download ERA5-Land data
@@ -22,8 +22,8 @@ def main():
     selected_dates = process_era5_data(era5_file, metafilter_params)
     print("Selected dates:", selected_dates)
 
-    # Step 3: Authenticate with the Copernicus Data Space Ecosystem
-    token = authenticate(DATASPACE_USERNAME, DATASPACE_PASSWORD)
+    # Step 3: Authenticate with the openEO
+    authenticate(username, password, eo_service_url)
 
     # Step 4: Search Sentinel-2 data for filtered dates
     products = search_sentinel_data(selected_dates, token)

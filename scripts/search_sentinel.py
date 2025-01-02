@@ -5,6 +5,7 @@
 import requests
 from urllib.parse import quote
 from datetime import datetime
+from openeo import connect
 from utils.config import DATASPACE_USERNAME, DATASPACE_PASSWORD, AREA
 
 # Authentication endpoint and API base URL
@@ -17,21 +18,14 @@ def format_dates(date):
     """
     return datetime.fromisoformat(str(date)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-def authenticate(username, password):
-    """
-    Authenticate with the Copernicus Data Space Ecosystem and return an access token.
-    """
-    response = requests.post(
-        AUTH_URL,
-        data={
-            'client_id': 'cdse-public',
-            'username': username,
-            'password': password,
-            'grant_type': 'password'
-        }
-    )
-    response.raise_for_status()
-    return response.json()["access_token"]
+def authenticate(username, password, eo_service_url):
+    # Connect to OpenEO backend
+    connection = connect(eo_service_url)
+
+    # Authenticate using basic authentication
+    connection.authenticate_basic(username=username, password=password)
+    return connection
+
 
 def build_query(selected_dates, area):
     """
