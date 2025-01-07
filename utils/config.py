@@ -7,8 +7,13 @@ import os
 
 load_dotenv()
 
-# Area of interest: Västerbotten subset
-AREA = [69.0, 10.0, 65.0, 24.0]  # Covers the northern half of Sweden
+# Covers a part of the northern half of Sweden
+AREA = {
+    "west": 18.0,
+    "east": 18.5,
+    "south": 66.0,
+    "north": 66.5
+}
 
 # Output directories
 OUTPUT_DIR = "data"

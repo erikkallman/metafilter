@@ -16,7 +16,8 @@ def load_metafilter_parameters(json_file):
 
 def process_era5_data(file_path, metafilter_params):
     """
-    Process ERA5 data using parameters from the metafilter.
+    Process ERA5 data using parameters from the metafilter and return
+    temporal_extent for use in OpenEO's load_collection.
     """
     ds = xr.open_dataset(file_path)
     ds = ds.rename({'valid_time': 'time'})
@@ -28,12 +29,15 @@ def process_era5_data(file_path, metafilter_params):
     daily_mean_temp = ds['t2m'].resample(time='1D').mean()
     daily_total_precip = ds['tp'].resample(time='1D').sum()
 
-    # Apply metafilter thresholds
+    # Apply metafilter thresholds and extract selected dates
     temp_threshold = metafilter_params["temperature"]["threshold"]
     precip_threshold = metafilter_params["precipitation"]["threshold"]
 
-    selected_days = (daily_mean_temp > temp_threshold) & (daily_total_precip < precip_threshold)
-    return selected_days.time.values[np.where(selected_days.values)[0]]
+    selected_dates = (daily_mean_temp > temp_threshold) & (daily_total_precip < precip_threshold)
+    selected_dates = daily_mean_temp.time.values[np.where(selected_dates.values)[0]]
+
+    # Get start and end dates in "YYYY-MM-DD" format
+    return [str(selected_dates[0])[:10], str(selected_dates[-1])[:10]]
 
 if __name__ == "__main__":
     # Load metafilter parameters from JSON

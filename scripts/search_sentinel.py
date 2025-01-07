@@ -26,62 +26,21 @@ def authenticate(username, password, eo_service_url):
     connection.authenticate_basic(username=username, password=password)
     return connection
 
+def search_sentinel_data(selected_dates, connection):
 
-def build_query(selected_dates, area):
     """
-    Build the OData query URL for Sentinel-2 L2A products.
+    Search for Sentinel-2 L2A products using openEO.
     """
-    # Format dates
-    start_date = format_dates(selected_dates[0])
-    end_date = format_dates(selected_dates[-1])
 
-    # Construct the polygon WKT
-    polygon_wkt = (
-        f"POLYGON(({area[1]} {area[2]}, "
-        f"{area[3]} {area[2]}, "
-        f"{area[3]} {area[0]}, "
-        f"{area[1]} {area[0]}, "
-        f"{area[1]} {area[2]}))"
+    data_cube = connection.load_collection(
+        collection_id="s2_msi_l2a",
+        spatial_extent=AREA,
+        temporal_extent=selected_dates,
+        bands=["b08", "b02",  "b04"]
     )
 
-    # Do not encode SRID=4326
-    encoded_polygon = f"SRID=4326;{polygon_wkt}"
-
-    # Build the query using OData.CSC.Intersects
-    query = (
-        f"{API_BASE_URL}/Products?$filter="
-        f"startswith(Name,'S2') and "
-        f"ContentDate/Start ge {start_date} and "
-        f"ContentDate/End le {end_date} and "
-        f"Online eq true and "
-        f"OData.CSC.Intersects(area=geography'{encoded_polygon}')"
-    )
-
-    return query
-
-def search_sentinel_data(selected_dates, token):
-    """
-    Search for Sentinel-2 L2A products using the Copernicus Data Space Ecosystem API.
-    """
-    headers = {
-        "Authorization": f"Bearer {token}"
-    }
-
-    # Build the query
-    query = build_query(selected_dates, AREA)
-
-    # Make the request
-    try:
-        response = requests.get(query, headers=headers)
-        response.raise_for_status()
-        products = response.json().get("value", [])
-        return products
-    except requests.exceptions.HTTPError as e:
-        print("HTTPError occurred:")
-        print(f"Status Code: {response.status_code}")
-        print(f"Response URL: {response.url}")
-        print(f"Response Content: {response.text}")  # Print detailed response content
-        raise e
+    products = data_cube.download(format="gtiff")
+    return products
 
 if __name__ == "__main__":
     # Example dates and area from config

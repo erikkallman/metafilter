@@ -23,10 +23,10 @@ def main():
     print("Selected dates:", selected_dates)
 
     # Step 3: Authenticate with the openEO
-    authenticate(username, password, eo_service_url)
+    connection = authenticate(username, password, eo_service_url)
 
     # Step 4: Search Sentinel-2 data for filtered dates
-    products = search_sentinel_data(selected_dates, token)
+    products = search_sentinel_data(selected_dates, connection)
     if not products:
         print("No products found for the given criteria.")
         return
