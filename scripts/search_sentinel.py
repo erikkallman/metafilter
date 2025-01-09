@@ -6,7 +6,7 @@ import requests
 from urllib.parse import quote
 from datetime import datetime
 from openeo import connect
-from utils.config import DATASPACE_USERNAME, DATASPACE_PASSWORD, AREA
+from utils.config import AREA
 
 # Authentication endpoint and API base URL
 AUTH_URL = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
