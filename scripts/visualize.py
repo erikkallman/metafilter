@@ -1,66 +1,63 @@
 # MIT License
 # Copyright (c) 2024 Erik Källman
 # See the LICENSE file for more details.
-
+import json
+import os
 import folium
-from shapely.wkt import loads as load_wkt
-import geopandas as gpd
+from pyproj import Transformer
+from shapely.geometry import shape
+from utils.config import AREA
 
-def preprocess_footprint(footprint_wkt):
-    """
-    Clean and standardize the WKT format for footprints.
-    """
-    if footprint_wkt.startswith("geography'SRID=4326;"):
-        footprint_wkt = footprint_wkt.replace("geography'SRID=4326;", "").strip()
-    elif footprint_wkt.startswith("SRID=4326;"):
-        footprint_wkt = footprint_wkt.replace("SRID=4326;", "").strip()
-    return footprint_wkt
-
-def visualize_sentinel_results(products):
+def visualize_sentinel_results(temporal_extent):
     """
     Visualize the footprints of Sentinel-2 products on a map.
     """
-    # Create a base map centered on the approximate area of interest
-    m = folium.Map(location=[67.0, 17.0], zoom_start=5)
+    stac_data = extract_stac_data()
 
-    for product in products:
-        product_id = product['Id']
-        name = product['Name']
-        start_date = product['ContentDate']['Start']
-        end_date = product['ContentDate']['End']
-        footprint_wkt = product['Footprint']  # Assuming the footprint is in WKT format
+    stac_coordinates = transform_stac_geometry(stac_data)
 
-        # Preprocess the Footprint WKT
-        footprint_wkt = preprocess_footprint(footprint_wkt)
+    create_folium_map(stac_coordinates, AREA, temporal_extent)
 
-        try:
+def extract_stac_data():
+    stac_file_path = os.path.join("..\\output_directory", "stac.json")
+    if not os.path.exists(stac_file_path):
+        raise FileNotFoundError("stac.json not found in the extracted files.")
+    with open(stac_file_path, 'r') as f:
+        stac_data = json.load(f)
+        return stac_data
 
-            # Convert WKT to a Shapely object
-            footprint = load_wkt(footprint_wkt)
+def transform_stac_geometry(stac_data, src_crs="epsg:32633", dst_crs="epsg:4326"):
+    transformer = Transformer.from_crs(src_crs, dst_crs, always_xy=True)
+    utm_geometry = stac_data["geometry"]["coordinates"][0]
+    latlon_coordinates = [transformer.transform(x, y) for x, y in utm_geometry]
+    return latlon_coordinates
 
-            # Convert Shapely geometry to GeoJSON for Folium
-            geojson = gpd.GeoSeries([footprint]).__geo_interface__
+def create_folium_map(stac_coordinates, spatial_extent, temporal_extent, output_file="metafilter_results_map.html"):
 
-            # Add the footprint to the map
-            folium.GeoJson(
-                geojson,
-                name=f"{name} ({product_id})",
-                tooltip=(
-                    f"ID: {product_id}<br>"
-                    f"Name: {name}<br>"
-                    f"Start: {start_date}<br>"
-                    f"End: {end_date}"
-                )
-            ).add_to(m)
-        except Exception as e:
-            print(f"Error processing footprint for product {product_id}: {e}")
+    # Format spatial and temporal extents for tooltip
+    spatial_info = f"[West: {spatial_extent['west']}, East: {spatial_extent['east']}, " \
+                   f"South: {spatial_extent['south']}, North: {spatial_extent['north']}]"
 
-    # Add layer control
-    folium.LayerControl().add_to(m)
+    temporal_info = f"{temporal_extent[0]} to {temporal_extent[1]}"
 
-    # Save the map to an HTML file
-    m.save("metafilter_results_map.html")
-    print("Map saved to metafilter_results_map.html")
+    # Create a Folium map centered at the centroid of the STAC footprint
+    stac_polygon = shape({"type": "Polygon", "coordinates": [stac_coordinates]})
+    centroid = stac_polygon.centroid
+    m = folium.Map(location=[centroid.y, centroid.x], zoom_start=8)
+
+    # Add the STAC footprint as a GeoJSON layer with updated tooltip
+    folium.GeoJson(
+        stac_polygon.__geo_interface__,  # GeoJSON representation of the footprint
+        tooltip=(
+            f"<b>STAC Footprint</b><br>"
+            f"<b>Spatial Extent:</b> {spatial_info}<br>"
+            f"<b>Temporal Extent:</b> {temporal_info}"
+        )
+    ).add_to(m)
+
+    # Save the map
+    m.save(output_file)
+    print(f"Map saved as `{output_file}`.")
 
 if __name__ == "__main__":
     # Example: Mock data for products

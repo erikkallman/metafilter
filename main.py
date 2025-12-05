@@ -2,16 +2,19 @@
 # Copyright (c) 2024 Erik Källman
 # See the LICENSE file for more details.
 
+import io
+import os
+import tarfile
 from scripts.download_era5 import download_era5_land
 from scripts.process_era5 import process_era5_data, load_metafilter_parameters
 from scripts.search_sentinel import authenticate, search_sentinel_data
 from scripts.visualize import visualize_sentinel_results
-from utils.config import DATASPACE_USERNAME, DATASPACE_PASSWORD, AREA
+from utils.config import username, password, eo_service_url
 
 def main():
     # Step 1: Download ERA5-Land data
     # Uncomment the line below if you want to download the ERA5-Land data
-    download_era5_land()
+    # download_era5_land()
 
     # Load metafilter parameters from JSON
     metafilter_file = "filters/metafilter.json"
@@ -22,23 +25,24 @@ def main():
     selected_dates = process_era5_data(era5_file, metafilter_params)
     print("Selected dates:", selected_dates)
 
-    # Step 3: Authenticate with the Copernicus Data Space Ecosystem
-    token = authenticate(DATASPACE_USERNAME, DATASPACE_PASSWORD)
+    # Step 3: Authenticate with the openEO
+    connection = authenticate(username, password, eo_service_url)
 
     # Step 4: Search Sentinel-2 data for filtered dates
-    products = search_sentinel_data(selected_dates, token)
+    products = search_sentinel_data(selected_dates, connection)
     if not products:
         print("No products found for the given criteria.")
         return
 
     print("Found the following Sentinel-2 L2A products:")
-    # Step 5: Print the results
-    for product in products:
-        print(f"ID: {product['Id']}, Name: {product['Name']}, "
-              f"Start Date: {product['ContentDate']['Start']}, End Date: {product['ContentDate']['End']}")
+    with tarfile.open(fileobj=io.BytesIO(products)) as tar:
+        for member in tar.getmembers():
+            member.name = os.path.basename(member.name)
+            tar.extract(member, "output_directory")
+            print(f"File: {member.name}, Size: {member.size}")
 
     # Step 6: Visualize the results
-    visualize_sentinel_results(products)
+    visualize_sentinel_results(selected_dates)
 
 if __name__ == "__main__":
     main()
