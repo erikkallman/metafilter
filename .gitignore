@@ -4,5 +4,8 @@ source_cat.py
 ./source_cat.py
 ./.env
 .env
-sentinel_results_map.html
-./sentinel_results_map.html
+metafilter_results_map.html
+./metafilter_results_map.html
+__pycache__/
+*.py[cod]
+*$py.class
