@@ -1,7 +1,3 @@
-# MIT License
-# Copyright (c) 2024 Erik Källman
-# See the LICENSE file for more details.
-
 from dotenv import load_dotenv
 import os
 

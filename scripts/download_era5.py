@@ -1,7 +1,3 @@
-# MIT License
-# Copyright (c) 2024 Erik Källman
-# See the LICENSE file for more details.
-
 import cdsapi
 from utils.config import AREA, OUTPUT_DIR
 
