@@ -3,7 +3,7 @@
     "name": "Daily mean temperature",
     "metric_column": "mean_temp_c",
     "operator": "gt",
-    "threshold": 20.0,
+    "threshold": 15.0,
     "unit": "Celsius",
     "description": "Daily mean temperature above this value will be selected."
   },

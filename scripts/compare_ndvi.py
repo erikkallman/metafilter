@@ -10,6 +10,10 @@ import rasterio
 from utils.config import AREA, NDVI_OUTPUT_DIR
 
 
+def print_info(message):
+    print(f"INFO {message}")
+
+
 def _get_openeo_connect():
     try:
         from openeo import connect
@@ -23,9 +27,12 @@ def _get_openeo_connect():
 
 
 def authenticate(username, password, eo_service_url):
+    print_info(f"Connecting to openEO backend: {eo_service_url}")
     connect = _get_openeo_connect()
     connection = connect(eo_service_url)
+    print_info("Authenticating with basic auth")
     connection.authenticate_basic(username=username, password=password)
+    print_info("openEO authentication complete")
     return connection
 
 
@@ -93,12 +100,29 @@ def summarize_ndvi_raster(raster_path):
         }
 
 
+def format_progress(current, total, width=20):
+    if total <= 0:
+        return "[--------------------]"
+
+    filled = int(width * current / total)
+    if current > 0 and filled == 0:
+        filled = 1
+    return f"[{'#' * filled}{'-' * (width - filled)}]"
+
+
 def run_strategy(connection, strategy_name, day_strings, output_dir=NDVI_OUTPUT_DIR):
     results = []
     strategy_dir = Path(output_dir) / strategy_name
+    total_days = len(day_strings)
 
-    for day_string in day_strings:
+    print_info(
+        f"Starting strategy '{strategy_name}' for {total_days} day(s) into {strategy_dir}"
+    )
+
+    for index, day_string in enumerate(day_strings, start=1):
         raster_path = strategy_dir / f"{day_string}.tif"
+        cached = raster_path.exists()
+        progress = format_progress(index, total_days)
         record = {
             "strategy": strategy_name,
             "date": day_string,
@@ -107,15 +131,24 @@ def run_strategy(connection, strategy_name, day_strings, output_dir=NDVI_OUTPUT_
         }
 
         try:
+            source_label = "cached" if cached else "download"
+            print_info(
+                f"{strategy_name} {progress} {index}/{total_days} {day_string} {source_label}"
+            )
             download_ndvi_raster(connection, day_string, raster_path)
             record.update(summarize_ndvi_raster(raster_path))
             record["status"] = "ok"
+            print_info(
+                f"{strategy_name} {day_string} mean_ndvi={record['mean_ndvi']}"
+            )
         except Exception as exc:
             record["status"] = "error"
             record["error"] = str(exc)
+            print_info(f"{strategy_name} {day_string} error: {exc}")
 
         results.append(record)
 
+    print_info(f"Completed strategy '{strategy_name}'")
     return pd.DataFrame(results)
 
 
@@ -155,6 +188,10 @@ def compare_ndvi_strategies(
     output_dir=NDVI_OUTPUT_DIR,
     ndvi_threshold=0.6,
 ):
+    print_info(
+        f"Preparing NDVI comparison: baseline={len(all_dates)} day(s), "
+        f"metafilter={len(selected_dates)} day(s)"
+    )
     baseline_results = run_strategy(
         connection,
         strategy_name="baseline_all_days",
@@ -213,6 +250,8 @@ def compare_ndvi_strategies(
     with open(summary_json_path, "w") as file:
         json.dump(comparison_summary, file, indent=2)
 
+    print_info(f"Wrote NDVI comparison table: {results_csv_path}")
+    print_info(f"Wrote NDVI comparison summary: {summary_json_path}")
     comparison_summary["summary_json"] = str(summary_json_path)
     return comparison_summary, all_results
 
@@ -284,4 +323,5 @@ def create_ndvi_comparison_plot(results_df, output_path, ndvi_threshold=0.6):
     figure.savefig(output_path, dpi=200, bbox_inches="tight")
     plt.close(figure)
 
+    print_info(f"Wrote NDVI comparison plot: {output_path}")
     return output_path

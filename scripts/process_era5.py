@@ -210,6 +210,10 @@ def format_rule_condition(rule_summary):
     return f"{symbol} {rule_summary['threshold']}{unit}"
 
 
+def format_rule_brief(rule):
+    return f"{rule['name']} ({rule['metric_column']} {format_rule_condition(rule)})"
+
+
 def format_rule_summary(rule_summary, total_days):
     base_text = (
         f"- {rule_summary['name']}: {rule_summary['passed_days']}/{total_days} days "
