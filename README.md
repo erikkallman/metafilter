@@ -87,6 +87,7 @@ python main.py
 
 2. **Process ERA5 Data**:
    - Automatically filters ERA5-Land data to identify dates matching specified weather conditions over the configured AOI.
+   - The active rules are defined in `filters/metafilter.json`, including the metric column, operator, threshold, unit, and description used for diagnostics.
 
 3. **Authenticate and Query Sentinel-2 Data**:
    - Connects to the configured openEO backend (Digital Earth Sweden by default) to fetch Sentinel-2 data for each day in the full period and each metafilter-selected day.

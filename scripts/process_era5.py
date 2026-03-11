@@ -7,6 +7,54 @@ import xarray as xr
 from utils.config import AREA
 
 
+COMPARISON_OPERATORS = {
+    "gt": {
+        "apply": lambda series, threshold: series > threshold,
+        "symbol": ">",
+    },
+    "ge": {
+        "apply": lambda series, threshold: series >= threshold,
+        "symbol": ">=",
+    },
+    "lt": {
+        "apply": lambda series, threshold: series < threshold,
+        "symbol": "<",
+    },
+    "le": {
+        "apply": lambda series, threshold: series <= threshold,
+        "symbol": "<=",
+    },
+}
+
+LEGACY_RULE_DEFAULTS = {
+    "temperature": {
+        "metric_column": "mean_temp_c",
+        "operator": "gt",
+        "name": "Daily mean temperature",
+    },
+    "precipitation": {
+        "metric_column": "total_precip_mm",
+        "operator": "lt",
+        "name": "Daily total precipitation",
+    },
+}
+
+
+class MetafilterError(ValueError):
+    pass
+
+
+class MetafilterConfigurationError(MetafilterError):
+    pass
+
+
+class MetafilterSelectionError(MetafilterError):
+    def __init__(self, message, daily_metrics=None, rule_summaries=None):
+        super().__init__(message)
+        self.daily_metrics = daily_metrics
+        self.rule_summaries = rule_summaries or []
+
+
 def load_metafilter_parameters(json_file):
     with open(json_file, "r") as file:
         return json.load(file)
@@ -36,7 +84,7 @@ def calculate_daily_metrics(file_path, area=AREA):
 
     dataset = subset_dataset_to_area(dataset, area)
     if dataset.sizes.get("latitude", 0) == 0 or dataset.sizes.get("longitude", 0) == 0:
-        raise ValueError("Configured AREA does not overlap the ERA5 dataset.")
+        raise MetafilterSelectionError("Configured AREA does not overlap the ERA5 dataset.")
 
     temperature_c = dataset["t2m"] - 273.15
     precipitation_mm = dataset["tp"] * 1000.0
@@ -54,36 +102,165 @@ def calculate_daily_metrics(file_path, area=AREA):
         daily_mean_temp = daily_mean_temp.mean(dim=spatial_dims, skipna=True)
         daily_total_precip = daily_total_precip.mean(dim=spatial_dims, skipna=True)
 
-    metrics = pd.DataFrame(
+    return pd.DataFrame(
         {
             "date": pd.to_datetime(daily_mean_temp["time"].values).strftime("%Y-%m-%d"),
             "mean_temp_c": daily_mean_temp.values,
             "total_precip_mm": daily_total_precip.values,
         }
     )
-    return metrics
+
+
+def normalize_metafilter_rules(metafilter_params):
+    normalized_rules = []
+
+    for rule_name, rule_config in metafilter_params.items():
+        defaults = LEGACY_RULE_DEFAULTS.get(rule_name, {})
+        merged_rule = {**defaults, **rule_config}
+
+        if "threshold" not in merged_rule:
+            raise MetafilterConfigurationError(
+                f"Metafilter rule '{rule_name}' is missing 'threshold'."
+            )
+
+        metric_column = merged_rule.get("metric_column")
+        if not metric_column:
+            raise MetafilterConfigurationError(
+                f"Metafilter rule '{rule_name}' is missing 'metric_column'."
+            )
+
+        operator = merged_rule.get("operator")
+        if operator not in COMPARISON_OPERATORS:
+            supported = ", ".join(sorted(COMPARISON_OPERATORS))
+            raise MetafilterConfigurationError(
+                f"Metafilter rule '{rule_name}' has unsupported operator '{operator}'. "
+                f"Supported operators: {supported}."
+            )
+
+        normalized_rules.append(
+            {
+                "rule_name": rule_name,
+                "name": merged_rule.get("name", rule_name.replace("_", " ").title()),
+                "description": merged_rule.get("description"),
+                "metric_column": metric_column,
+                "operator": operator,
+                "threshold": merged_rule["threshold"],
+                "unit": merged_rule.get("unit"),
+            }
+        )
+
+    return normalized_rules
+
+
+def build_rule_summary(rule, metric_series, pass_mask):
+    valid_values = metric_series.dropna()
+    passed_days = int(pass_mask.fillna(False).sum())
+    summary = {
+        "rule_name": rule["rule_name"],
+        "name": rule["name"],
+        "description": rule.get("description"),
+        "metric_column": rule["metric_column"],
+        "operator": rule["operator"],
+        "threshold": rule["threshold"],
+        "unit": rule.get("unit"),
+        "valid_days": int(valid_values.shape[0]),
+        "passed_days": passed_days,
+        "observed_min": None,
+        "observed_max": None,
+    }
+
+    if not valid_values.empty:
+        summary["observed_min"] = float(valid_values.min())
+        summary["observed_max"] = float(valid_values.max())
+
+    return summary
 
 
 def apply_metafilter(daily_metrics, metafilter_params):
-    temp_threshold = metafilter_params["temperature"]["threshold"]
-    precip_threshold = metafilter_params["precipitation"]["threshold"]
-
     filtered_metrics = daily_metrics.copy()
-    filtered_metrics["selected"] = (
-        (filtered_metrics["mean_temp_c"] > temp_threshold)
-        & (filtered_metrics["total_precip_mm"] < precip_threshold)
+    normalized_rules = normalize_metafilter_rules(metafilter_params)
+
+    selected_mask = pd.Series(True, index=filtered_metrics.index, dtype=bool)
+    rule_summaries = []
+    available_metrics = ", ".join(sorted(filtered_metrics.columns))
+
+    for rule in normalized_rules:
+        metric_column = rule["metric_column"]
+        if metric_column not in filtered_metrics.columns:
+            raise MetafilterConfigurationError(
+                f"Metafilter rule '{rule['rule_name']}' requires metric column "
+                f"'{metric_column}', but the current ERA5 processing only provides: "
+                f"{available_metrics}."
+            )
+
+        metric_series = pd.to_numeric(filtered_metrics[metric_column], errors="coerce")
+        operator = COMPARISON_OPERATORS[rule["operator"]]
+        pass_mask = operator["apply"](metric_series, rule["threshold"])
+        filtered_metrics[f"rule__{rule['rule_name']}"] = pass_mask.fillna(False)
+        selected_mask &= pass_mask.fillna(False)
+        rule_summaries.append(build_rule_summary(rule, metric_series, pass_mask))
+
+    filtered_metrics["selected"] = selected_mask
+    return filtered_metrics, rule_summaries
+
+
+def format_rule_condition(rule_summary):
+    symbol = COMPARISON_OPERATORS[rule_summary["operator"]]["symbol"]
+    unit = f" {rule_summary['unit']}" if rule_summary.get("unit") else ""
+    return f"{symbol} {rule_summary['threshold']}{unit}"
+
+
+def format_rule_summary(rule_summary, total_days):
+    base_text = (
+        f"- {rule_summary['name']}: {rule_summary['passed_days']}/{total_days} days "
+        f"satisfied {format_rule_condition(rule_summary)}"
     )
-    return filtered_metrics
+
+    if rule_summary["observed_min"] is not None and rule_summary["observed_max"] is not None:
+        observed = (
+            f"; observed range was {rule_summary['observed_min']:.2f} "
+            f"to {rule_summary['observed_max']:.2f}"
+        )
+        if rule_summary.get("unit"):
+            observed = f"{observed} {rule_summary['unit']}"
+        base_text = f"{base_text}{observed}"
+    else:
+        base_text = (
+            f"{base_text}; no valid values were available for metric "
+            f"'{rule_summary['metric_column']}'"
+        )
+
+    if rule_summary.get("description"):
+        base_text = f"{base_text}. {rule_summary['description']}"
+
+    return base_text
+
+
+def format_selection_error_message(rule_summaries, total_days):
+    summary_lines = [
+        "No dates matched the configured metafilter rules.",
+        f"Evaluated {total_days} candidate day(s).",
+        "Rule diagnostics:",
+    ]
+    summary_lines.extend(
+        format_rule_summary(rule_summary, total_days)
+        for rule_summary in rule_summaries
+    )
+    return "\n".join(summary_lines)
 
 
 def process_era5_data(file_path, metafilter_params, area=AREA):
     daily_metrics = calculate_daily_metrics(file_path, area=area)
-    filtered_metrics = apply_metafilter(daily_metrics, metafilter_params)
+    filtered_metrics, rule_summaries = apply_metafilter(daily_metrics, metafilter_params)
 
     all_dates = filtered_metrics["date"].tolist()
     selected_dates = filtered_metrics.loc[filtered_metrics["selected"], "date"].tolist()
     if not selected_dates:
-        raise ValueError("No dates matched the configured metafilter thresholds.")
+        raise MetafilterSelectionError(
+            format_selection_error_message(rule_summaries, total_days=len(filtered_metrics)),
+            daily_metrics=filtered_metrics,
+            rule_summaries=rule_summaries,
+        )
 
     return {
         "all_dates": all_dates,
@@ -91,6 +268,7 @@ def process_era5_data(file_path, metafilter_params, area=AREA):
         "full_temporal_extent": [all_dates[0], all_dates[-1]],
         "selected_temporal_extent": [selected_dates[0], selected_dates[-1]],
         "daily_metrics": filtered_metrics,
+        "rule_summaries": rule_summaries,
     }
 
 
@@ -103,5 +281,9 @@ def save_daily_metrics(daily_metrics, output_path):
 if __name__ == "__main__":
     metafilter_file = "filters/metafilter.json"
     metafilter_params = load_metafilter_parameters(metafilter_file)
-    results = process_era5_data("data/era5/era5_land_july_2023.nc", metafilter_params)
+    try:
+        results = process_era5_data("data/era5/era5_land_july_2023.nc", metafilter_params)
+    except MetafilterError as exc:
+        print(exc)
+        raise SystemExit(1)
     print(results["selected_dates"])

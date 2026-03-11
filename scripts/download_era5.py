@@ -8,8 +8,8 @@ def download_era5_land():
         'reanalysis-era5-land',
         {
             'variable': ['2m_temperature', 'total_precipitation'],
-            'year': '2023',
-            'month': '07',
+            'year': '2024',
+            'month': '08',
             'day': [f'{day:02d}' for day in range(1, 32)],
             'time': [f'{hour:02d}:00' for hour in range(24)],
             # CDS expects [north, west, south, east].
