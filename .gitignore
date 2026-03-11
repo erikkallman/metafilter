@@ -6,6 +6,7 @@ source_cat.py
 .env
 metafilter_results_map.html
 ./metafilter_results_map.html
+data/ndvi_comparison/
 __pycache__/
 *.py[cod]
 *$py.class

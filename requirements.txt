@@ -3,6 +3,7 @@ xarray
 numpy
 pandas
 matplotlib
+openeo
 sentinelsat
 rasterio
 geopandas

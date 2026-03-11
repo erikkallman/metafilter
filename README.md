@@ -2,9 +2,9 @@
 
 ## Overview
 
-This provides a pipeline to process ERA5-Land meteorological data, retrieve relevant Sentinel-2 satellite imagery metadata through an openEO backend (Digital Earth Sweden by default), and visualize the results on an interactive map. The project aims to identify satellite imagery for specific weather conditions over a specified area of interest and render the footprints of these products geographically.
+This provides a pipeline to process ERA5-Land meteorological data, retrieve Sentinel-2 data through an openEO backend (Digital Earth Sweden by default), calculate NDVI rasters, and compare a plain "all days" strategy against a weather-driven metafilter strategy.
 
-Essentially it is a demonstration of how metereological metadata can be used to filter satellite data series where optimal weather conditions might yield dataseries of, for instance, Sentinel 2 L2A data of good quality with respect to cloud cover, etc.
+Essentially it is a demonstration of how meteorological metadata can be used to narrow down when it is worth looking for Sentinel-2 L2A imagery, and whether that produces an NDVI time series with higher values than an unfiltered query.
 
 The work was co-developed with partners in the Space Data Lab 3.0 project.
 
@@ -22,8 +22,8 @@ The work was co-developed with partners in the Space Data Lab 3.0 project.
    - Retrieves Sentinel-2 data for the selected dates and area of interest using openEO (`load_collection` + `download`).
    - The default backend configured in this repo is Digital Earth Sweden (`https://openeo.digitalearth.se`).
 
-4. **Visualize Sentinel-2 Footprints**:
-   - Renders the footprints of the retrieved Sentinel-2 products on an interactive Folium map.
+4. **Compare NDVI Outcomes**:
+   - Calculates NDVI rasters from retrieved Sentinel-2 data and generates a plot comparing all candidate days against metafilter-selected days.
 
 ---
 
@@ -64,10 +64,10 @@ This repository currently supports two external data-fetching modes:
    ```
 
 3. **Configure Your Environment**:
-   - Update the following values in `utils/config.py`:
+   - Update the following values in `utils/config.py` or `.env`:
      - `AREA`: The geographical bounding box of the area of interest (northern half of Sweden by default).
      - `eo_service_url`: openEO backend URL (default: `https://openeo.digitalearth.se`).
-     - `username` / `password`: Credentials for the selected openEO backend.
+     - `DATASPACE_USERNAME` / `DATASPACE_PASSWORD` or `OPENEO_USERNAME` / `OPENEO_PASSWORD`: Credentials for the selected openEO backend.
    - For ERA5 download (`scripts/download_era5.py`), configure CDS API access for your Copernicus Climate Data Store account.
 
 ---
@@ -83,27 +83,27 @@ python main.py
 ### Workflow Steps
 
 1. **Download ERA5-Land Data**:
-   - Uncomment the `download_era5_land()` function in `main.py` to download data for the specified time period.
+   - If you need to refresh the ERA5 input file, run `python scripts/download_era5.py`.
 
 2. **Process ERA5 Data**:
-   - Automatically filters ERA5-Land data to identify dates matching specified weather conditions.
+   - Automatically filters ERA5-Land data to identify dates matching specified weather conditions over the configured AOI.
 
 3. **Authenticate and Query Sentinel-2 Data**:
-   - Connects to the configured openEO backend (Digital Earth Sweden by default) to fetch Sentinel-2 data for the filtered dates.
+   - Connects to the configured openEO backend (Digital Earth Sweden by default) to fetch Sentinel-2 data for each day in the full period and each metafilter-selected day.
 
-4. **Visualize Sentinel-2 Footprints**:
-   - Generates an interactive map (`metafilter_results_map.html`) displaying the footprints of the retrieved Sentinel-2 products.
+4. **Generate NDVI Comparison Plot**:
+   - Produces `data/ndvi_comparison/ndvi_comparison_plot.png`, which overlays the unfiltered and metafilter-selected NDVI time series.
 
 ---
 
 ## Output
 
 - **Console Output**:
-  - Prints metadata for the retrieved Sentinel-2 products, including IDs, names, and timestamps.
+  - Prints the path to the generated NDVI comparison plot.
 
-- **Generated Map**:
-  - Outputs an interactive map file: `metafilter_results_map.html`.
-  - Open the file in a browser to view the Sentinel-2 footprints over the area of interest.
+- **Generated Plot**:
+  - Outputs `data/ndvi_comparison/ndvi_comparison_plot.png`.
+  - Open the image to compare mean NDVI over time for all queried days versus metafilter-selected days.
 
 ---
 
@@ -119,10 +119,11 @@ python main.py
 ├── main.py                    # Main entry point for the project
 ├── requirements.txt           # Required Python dependencies
 ├── scripts/                   # Core functionality scripts
+│   ├── compare_ndvi.py        # Downloads Sentinel-2 NDVI rasters and plots the comparison
 │   ├── download_era5.py       # Downloads ERA5-Land data
 │   ├── process_era5.py        # Processes ERA5 data to filter dates
 │   ├── search_sentinel.py     # Queries/downloads Sentinel-2 data via openEO
-│   └── visualize.py           # Generates interactive maps
+│   └── visualize.py           # Legacy footprint visualization helper
 ├── filters/                   # Stores JSON filters used in the processing
 │   └── metafilter.json        # An example metadata filter JSON
 └── utils/                     # Utility scripts and configurations
@@ -133,7 +134,7 @@ python main.py
 
 ## Notes
 
-- Sentinel-2 retrieval uses openEO credentials configured in `utils/config.py` and the configured `eo_service_url` (Digital Earth Sweden by default).
+- Sentinel-2 retrieval uses openEO credentials configured through `.env` or `utils/config.py` and the configured `eo_service_url` (Digital Earth Sweden by default).
 - ERA5-Land download requires a registered account with the [Copernicus Climate Data Store](https://cds.climate.copernicus.eu/) and CDS API setup.
 
 For questions or issues, feel free to open an issue in the repository.

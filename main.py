@@ -1,44 +1,48 @@
-import io
-import os
-import tarfile
-from scripts.download_era5 import download_era5_land
-from scripts.process_era5 import process_era5_data, load_metafilter_parameters
-from scripts.search_sentinel import authenticate, search_sentinel_data
-from scripts.visualize import visualize_sentinel_results
-from utils.config import username, password, eo_service_url
+from pathlib import Path
+
+from scripts.compare_ndvi import (
+    authenticate,
+    compare_ndvi_strategies,
+    create_ndvi_comparison_plot,
+)
+from scripts.process_era5 import (
+    load_metafilter_parameters,
+    process_era5_data,
+    save_daily_metrics,
+)
+from utils.config import NDVI_OUTPUT_DIR, eo_service_url, password, username
+
 
 def main():
-    # Step 1: Download ERA5-Land data
-    # Uncomment the line below if you want to download the ERA5-Land data
-    # download_era5_land()
+    metafilter_params = load_metafilter_parameters("filters/metafilter.json")
+    era5_results = process_era5_data(
+        "data/era5/era5_land_july_2023.nc",
+        metafilter_params,
+    )
 
-    # Load metafilter parameters from JSON
-    metafilter_file = "filters/metafilter.json"
-    metafilter_params = load_metafilter_parameters(metafilter_file)
+    output_dir = Path(NDVI_OUTPUT_DIR)
+    daily_metrics_path = output_dir / "era5_daily_metrics.csv"
+    save_daily_metrics(era5_results["daily_metrics"], daily_metrics_path)
 
-    # Step 2: Process ERA5 data to filter dates
-    era5_file = "data/era5/era5_land_july_2023.nc"
-    selected_dates = process_era5_data(era5_file, metafilter_params)
-    print("Selected dates:", selected_dates)
-
-    # Step 3: Authenticate with the openEO
     connection = authenticate(username, password, eo_service_url)
+    comparison_summary, comparison_results = compare_ndvi_strategies(
+        connection=connection,
+        all_dates=era5_results["all_dates"],
+        selected_dates=era5_results["selected_dates"],
+        output_dir=output_dir,
+    )
 
-    # Step 4: Search Sentinel-2 data for filtered dates
-    products = search_sentinel_data(selected_dates, connection)
-    if not products:
-        print("No products found for the given criteria.")
-        return
+    plot_path = create_ndvi_comparison_plot(
+        comparison_results,
+        output_path=output_dir / "ndvi_comparison_plot.png",
+        ndvi_threshold=comparison_summary["ndvi_threshold"],
+    )
 
-    print("Found the following Sentinel-2 L2A products:")
-    with tarfile.open(fileobj=io.BytesIO(products)) as tar:
-        for member in tar.getmembers():
-            member.name = os.path.basename(member.name)
-            tar.extract(member, "output_directory")
-            print(f"File: {member.name}, Size: {member.size}")
+    print(
+        "Generated NDVI comparison plot:",
+        plot_path,
+    )
 
-    # Step 6: Visualize the results
-    visualize_sentinel_results(selected_dates)
 
 if __name__ == "__main__":
     main()
