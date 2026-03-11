@@ -67,7 +67,7 @@ This repository currently supports two external data-fetching modes:
    - Update the following values in `utils/config.py` or `.env`:
      - `AREA`: The geographical bounding box of the area of interest (northern half of Sweden by default).
      - `eo_service_url`: openEO backend URL (default: `https://openeo.digitalearth.se`).
-     - `DATASPACE_USERNAME` / `DATASPACE_PASSWORD` or `OPENEO_USERNAME` / `OPENEO_PASSWORD`: Credentials for the selected openEO backend.
+     - `OPENEO_USERNAME` / `OPENEO_PASSWORD`: Credentials for the selected openEO backend.
    - For ERA5 download (`scripts/download_era5.py`), configure CDS API access for your Copernicus Climate Data Store account.
 
 ---
