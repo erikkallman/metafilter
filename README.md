@@ -139,9 +139,11 @@ This section shows how to interpret a completed run using the generated figures 
 
 ### Generated figures
 
+The images rendered below are checked-in example outputs stored in `example_images/`. A local run still writes fresh outputs to `data/ndvi_comparison/`.
+
 #### NDVI comparison over time
 
-![NDVI comparison](data/ndvi_comparison/ndvi_comparison_plot.png)
+![NDVI comparison](example_images/ndvi_comparison_plot.png)
 
 This plot compares per-day AOI mean NDVI for:
 
@@ -152,7 +154,7 @@ The dashed gray and green lines show the average NDVI of each series.
 
 #### ERA5 drivers behind the selection
 
-![ERA5 driver plot](data/ndvi_comparison/era5_driver_plot.png)
+![ERA5 driver plot](example_images/era5_driver_plot.png)
 
 This plot shows the daily ERA5 driver variables used by the metafilter and highlights the selected days. It makes the filtering logic visible:
 
@@ -162,7 +164,7 @@ This plot shows the daily ERA5 driver variables used by the metafilter and highl
 
 #### NDVI raster gallery
 
-![NDVI raster gallery](data/ndvi_comparison/ndvi_raster_gallery.png)
+![NDVI raster gallery](example_images/ndvi_raster_gallery.png)
 
 This gallery compares representative selected and rejected NDVI rasters using a shared color scale. It is useful for visually checking whether the metafilter tends to keep greener, cleaner scenes and discard less useful ones.
 
