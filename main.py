@@ -3,7 +3,9 @@ from pathlib import Path
 from scripts.compare_ndvi import (
     authenticate,
     compare_ndvi_strategies,
+    create_era5_driver_plot,
     create_ndvi_comparison_plot,
+    create_ndvi_raster_gallery,
 )
 from scripts.process_era5 import (
     MetafilterError,
@@ -71,12 +73,25 @@ def main():
         output_path=output_dir / "ndvi_comparison_plot.png",
         ndvi_threshold=comparison_summary["ndvi_threshold"],
     )
+    driver_plot_path = create_era5_driver_plot(
+        era5_results["daily_metrics"],
+        era5_results["rule_summaries"],
+        output_path=output_dir / "era5_driver_plot.png",
+    )
+    gallery_path = create_ndvi_raster_gallery(
+        comparison_results,
+        era5_results["daily_metrics"],
+        era5_results["rule_summaries"],
+        output_path=output_dir / "ndvi_raster_gallery.png",
+    )
 
     print_info(
         f"Comparison summary: mean_ndvi_delta={comparison_summary['mean_ndvi_delta']}, "
         f"share_above_threshold_delta={comparison_summary['share_above_threshold_delta']}"
     )
     print(f"Generated NDVI comparison plot: {plot_path}")
+    print(f"Generated ERA5 driver plot: {driver_plot_path}")
+    print(f"Generated NDVI raster gallery: {gallery_path}")
     return 0
 
 

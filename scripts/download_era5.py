@@ -14,9 +14,9 @@ def download_era5_land():
             'time': [f'{hour:02d}:00' for hour in range(24)],
             # CDS expects [north, west, south, east].
             'area': [AREA["north"], AREA["west"], AREA["south"], AREA["east"]],
-            'format': 'netcdf',
+            'data_format': 'netcdf',
         },
-        f"{OUTPUT_DIR}/era5/era5_land_july_2023.nc"
+        f"{OUTPUT_DIR}/era5/era5_land_july_2024.nc"
     )
 
 if __name__ == "__main__":

@@ -100,6 +100,20 @@ def summarize_ndvi_raster(raster_path):
         }
 
 
+def unique_rule_metrics(rule_summaries):
+    unique_rules = []
+    seen_metrics = set()
+
+    for rule_summary in rule_summaries:
+        metric_column = rule_summary["metric_column"]
+        if metric_column in seen_metrics:
+            continue
+        seen_metrics.add(metric_column)
+        unique_rules.append(rule_summary)
+
+    return unique_rules
+
+
 def format_progress(current, total, width=20):
     if total <= 0:
         return "[--------------------]"
@@ -286,6 +300,7 @@ def create_ndvi_comparison_plot(results_df, output_path, ndvi_threshold=0.6):
             linestyle="--",
             linewidth=1,
             alpha=0.7,
+            label="All days mean",
         )
 
     if not metafilter.empty:
@@ -304,15 +319,9 @@ def create_ndvi_comparison_plot(results_df, output_path, ndvi_threshold=0.6):
             linestyle="--",
             linewidth=1,
             alpha=0.7,
+            label="Metafilter mean",
         )
 
-    axis.axhline(
-        ndvi_threshold,
-        color="#B3261E",
-        linestyle=":",
-        linewidth=1.5,
-        label=f"High NDVI threshold ({ndvi_threshold})",
-    )
     axis.set_title("NDVI Comparison: All Days vs Metafilter-Selected Days")
     axis.set_xlabel("Acquisition day")
     axis.set_ylabel("Mean NDVI")
@@ -324,4 +333,259 @@ def create_ndvi_comparison_plot(results_df, output_path, ndvi_threshold=0.6):
     plt.close(figure)
 
     print_info(f"Wrote NDVI comparison plot: {output_path}")
+    return output_path
+
+
+def create_era5_driver_plot(daily_metrics, rule_summaries, output_path):
+    metrics = daily_metrics.copy()
+    metrics["date"] = pd.to_datetime(metrics["date"])
+    selected_metrics = metrics[metrics["selected"]]
+    grouped_rules = {}
+
+    for rule_summary in rule_summaries:
+        grouped_rules.setdefault(rule_summary["metric_column"], []).append(rule_summary)
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    figure, axes = plt.subplots(
+        len(grouped_rules),
+        1,
+        figsize=(13, 4 * len(grouped_rules)),
+        sharex=True,
+    )
+    if len(grouped_rules) == 1:
+        axes = [axes]
+
+    series_colors = ["#1E4D8F", "#8A5A00", "#00695C", "#6A1B9A"]
+    selected_color = "#2E7D32"
+    threshold_colors = ["#B3261E", "#E65100", "#8E24AA", "#5D4037"]
+
+    for index, (axis, (metric_column, rules_for_metric)) in enumerate(
+        zip(axes, grouped_rules.items())
+    ):
+        series_color = series_colors[index % len(series_colors)]
+        axis.plot(
+            metrics["date"],
+            metrics[metric_column],
+            color=series_color,
+            linewidth=2,
+            marker="o",
+            markersize=4,
+            label="Daily AOI mean",
+        )
+
+        if not selected_metrics.empty:
+            axis.scatter(
+                selected_metrics["date"],
+                selected_metrics[metric_column],
+                color=selected_color,
+                edgecolor="white",
+                linewidth=0.6,
+                s=55,
+                zorder=3,
+                label="Metafilter-selected day",
+            )
+
+        for rule_index, rule_summary in enumerate(rules_for_metric):
+            threshold_color = threshold_colors[rule_index % len(threshold_colors)]
+            axis.axhline(
+                rule_summary["threshold"],
+                color=threshold_color,
+                linestyle="--",
+                linewidth=1.5,
+                label=f"Threshold {rule_summary['operator']} {rule_summary['threshold']}",
+            )
+
+        unit = rules_for_metric[0].get("unit") or metric_column
+        axis.set_title(rules_for_metric[0]["name"], loc="left", fontsize=12)
+        axis.set_ylabel(unit)
+        axis.grid(alpha=0.25)
+        axis.legend(loc="upper right")
+
+    axes[-1].set_xlabel("Date")
+    figure.suptitle("ERA5 Drivers with Metafilter-Selected Days", fontsize=16, y=0.98)
+    figure.autofmt_xdate()
+    figure.tight_layout()
+    figure.savefig(output_path, dpi=200, bbox_inches="tight")
+    plt.close(figure)
+
+    print_info(f"Wrote ERA5 driver plot: {output_path}")
+    return output_path
+
+
+def pick_first_unique(candidates, chosen_dates):
+    for _, row in candidates.iterrows():
+        if row["date"] not in chosen_dates:
+            return row
+    return None
+
+
+def build_gallery_selection(results_df, daily_metrics):
+    successful = results_df[results_df["status"] == "ok"].copy()
+    baseline = successful[successful["strategy"] == "baseline_all_days"].copy()
+    metafilter = successful[successful["strategy"] == "metafilter_selected_days"].copy()
+
+    metrics = daily_metrics.copy()
+    merged = successful.merge(metrics, on="date", how="left")
+    baseline = merged[merged["strategy"] == "baseline_all_days"].copy()
+    metafilter = merged[merged["strategy"] == "metafilter_selected_days"].copy()
+    rejected = baseline[~baseline["date"].isin(metafilter["date"])].copy()
+
+    candidates = []
+    if not metafilter.empty:
+        candidates.append(
+            (
+                "Best metafilter day",
+                metafilter.sort_values("mean_ndvi", ascending=False),
+            )
+        )
+        median_ndvi = metafilter["mean_ndvi"].median()
+        candidates.append(
+            (
+                "Representative metafilter day",
+                metafilter.assign(
+                    median_distance=(metafilter["mean_ndvi"] - median_ndvi).abs()
+                ).sort_values(["median_distance", "mean_ndvi"], ascending=[True, False]),
+            )
+        )
+
+    if not rejected.empty:
+        if "total_precip_mm" in rejected.columns:
+            candidates.append(
+                (
+                    "Wet rejected day",
+                    rejected.sort_values(
+                        ["total_precip_mm", "mean_ndvi"],
+                        ascending=[False, True],
+                    ),
+                )
+            )
+        if "mean_temp_c" in rejected.columns:
+            candidates.append(
+                (
+                    "Cool rejected day",
+                    rejected.sort_values(
+                        ["mean_temp_c", "mean_ndvi"],
+                        ascending=[True, True],
+                    ),
+                )
+            )
+        candidates.append(
+            (
+                "Lowest-NDVI rejected day",
+                rejected.sort_values("mean_ndvi", ascending=True),
+            )
+        )
+
+    candidates.extend(
+        [
+            ("Best baseline day", baseline.sort_values("mean_ndvi", ascending=False)),
+            ("Lowest-NDVI baseline day", baseline.sort_values("mean_ndvi", ascending=True)),
+        ]
+    )
+
+    selections = []
+    chosen_dates = set()
+    for label, candidate_frame in candidates:
+        if candidate_frame.empty:
+            continue
+        row = pick_first_unique(candidate_frame, chosen_dates)
+        if row is None:
+            continue
+        chosen_dates.add(row["date"])
+        selections.append({"label": label, "row": row})
+        if len(selections) == 4:
+            break
+
+    return selections
+
+
+def load_raster_preview(raster_path):
+    with rasterio.open(raster_path) as dataset:
+        data = dataset.read(masked=True).astype("float32")
+        if dataset.count == 1:
+            return data[0]
+        return np.ma.mean(data, axis=0)
+
+
+def format_gallery_metrics(row, rule_summaries):
+    lines = [f"Mean NDVI: {row['mean_ndvi']:.3f}"]
+    for rule_summary in unique_rule_metrics(rule_summaries):
+        metric_column = rule_summary["metric_column"]
+        if metric_column not in row or pd.isna(row[metric_column]):
+            continue
+        unit = f" {rule_summary['unit']}" if rule_summary.get("unit") else ""
+        lines.append(f"{rule_summary['name']}: {row[metric_column]:.2f}{unit}")
+    return "\n".join(lines)
+
+
+def create_ndvi_raster_gallery(
+    results_df,
+    daily_metrics,
+    rule_summaries,
+    output_path,
+    color_range=(-0.2, 1.0),
+):
+    selections = build_gallery_selection(results_df, daily_metrics)
+    if not selections:
+        raise ValueError("No successful NDVI rasters were available for gallery output.")
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    columns = 2
+    rows = int(np.ceil(len(selections) / columns))
+    figure, axes = plt.subplots(rows, columns, figsize=(14, 5.5 * rows))
+    axes = np.atleast_1d(axes).ravel()
+    image_artist = None
+
+    for axis, selection in zip(axes, selections):
+        row = selection["row"]
+        preview = load_raster_preview(row["raster_path"])
+        image_artist = axis.imshow(
+            preview,
+            cmap="RdYlGn",
+            vmin=color_range[0],
+            vmax=color_range[1],
+        )
+        axis.set_title(f"{selection['label']}\n{row['date']}", loc="left", fontsize=12)
+        axis.text(
+            0.02,
+            0.02,
+            format_gallery_metrics(row, rule_summaries),
+            transform=axis.transAxes,
+            ha="left",
+            va="bottom",
+            fontsize=9,
+            bbox={"facecolor": "white", "alpha": 0.85, "edgecolor": "none"},
+        )
+        axis.set_xticks([])
+        axis.set_yticks([])
+
+    for axis in axes[len(selections):]:
+        axis.axis("off")
+
+    if image_artist is not None:
+        figure.subplots_adjust(right=0.9)
+        colorbar_axis = figure.add_axes([0.92, 0.16, 0.018, 0.68])
+        colorbar = figure.colorbar(
+            image_artist,
+            cax=colorbar_axis,
+        )
+        colorbar.set_label("NDVI")
+
+    figure.suptitle("NDVI Raster Gallery: Selected and Rejected Days", fontsize=16, y=0.98)
+    figure.text(
+        0.5,
+        0.01,
+        "All panels use the same NDVI color scale.",
+        ha="center",
+        fontsize=10,
+    )
+    figure.tight_layout(rect=[0, 0.03, 0.9, 0.96])
+    figure.savefig(output_path, dpi=200, bbox_inches="tight")
+    plt.close(figure)
+
+    print_info(f"Wrote NDVI raster gallery: {output_path}")
     return output_path

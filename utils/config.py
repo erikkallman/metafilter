@@ -4,12 +4,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Covers a part of the northern half of Sweden
 AREA = {
     "west": 18.0,
-    "east": 18.5,
-    "south": 66.0,
-    "north": 66.5,
+    "east": 18.2,
+    "south": 59.2,
+    "north": 59.4,
 }
 
 # Output directories

@@ -94,17 +94,23 @@ python main.py
 
 4. **Generate NDVI Comparison Plot**:
    - Produces `data/ndvi_comparison/ndvi_comparison_plot.png`, which overlays the unfiltered and metafilter-selected NDVI time series.
+   - Produces `data/ndvi_comparison/era5_driver_plot.png`, which shows the ERA5 driver variables with metafilter-selected days highlighted.
+   - Produces `data/ndvi_comparison/ndvi_raster_gallery.png`, which lays out selected and rejected NDVI rasters using a shared color scale.
 
 ---
 
 ## Output
 
 - **Console Output**:
-  - Prints the path to the generated NDVI comparison plot.
+  - Prints the paths to the generated NDVI comparison images.
 
 - **Generated Plot**:
   - Outputs `data/ndvi_comparison/ndvi_comparison_plot.png`.
   - Open the image to compare mean NDVI over time for all queried days versus metafilter-selected days.
+  - Outputs `data/ndvi_comparison/era5_driver_plot.png`.
+  - Open the image to inspect how the ERA5 thresholds relate to the selected days.
+  - Outputs `data/ndvi_comparison/ndvi_raster_gallery.png`.
+  - Open the image to compare representative selected and rejected NDVI rasters side by side.
 
 ---
 
