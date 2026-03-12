@@ -286,7 +286,7 @@ if __name__ == "__main__":
     metafilter_file = "filters/metafilter.json"
     metafilter_params = load_metafilter_parameters(metafilter_file)
     try:
-        results = process_era5_data("data/era5/era5_land_july_2023.nc", metafilter_params)
+        results = process_era5_data("data/era5/era5_land_july_2024.nc", metafilter_params)
     except MetafilterError as exc:
         print(exc)
         raise SystemExit(1)

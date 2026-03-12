@@ -42,7 +42,7 @@ def main():
 
     try:
         era5_results = process_era5_data(
-            "data/era5/era5_land_july_2023.nc",
+            "data/era5/era5_land_july_2024.nc",
             metafilter_params,
         )
     except MetafilterError as exc:
