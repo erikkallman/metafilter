@@ -114,6 +114,96 @@ python main.py
 
 ---
 
+## Results Example
+
+This section shows how to interpret a completed run using the generated figures and `data/ndvi_comparison/ndvi_comparison_summary.json`.
+
+### Data used
+
+- **Meteorological data**: ERA5-Land hourly `2m_temperature` and `total_precipitation`, aggregated to daily AOI means.
+- **Satellite data**: Sentinel-2 L2A (`s2_msi_l2a`) from the Digital Earth Sweden openEO backend.
+- **NDVI inputs**: Sentinel-2 bands `b04` (red) and `b08` (near-infrared).
+
+### Parameters in the example run
+
+- **AOI**: Stockholm area bounding box from `utils/config.py`
+  - `west=18.0`, `east=18.2`, `south=59.2`, `north=59.4`
+- **ERA5 filter rules** from `filters/metafilter.json`
+  - Daily mean temperature `> 15.0 Celsius`
+  - Daily total precipitation `< 1.0 mm/day`
+- **ERA5 period** from `scripts/download_era5.py`
+  - August 2024 (`2024-08-01` to `2024-08-31`)
+- **High NDVI threshold in the summary report**
+  - `0.6`
+  - This is used in `share_above_threshold`; it is a reporting threshold, not part of the metafilter itself.
+
+### Generated figures
+
+#### NDVI comparison over time
+
+![NDVI comparison](data/ndvi_comparison/ndvi_comparison_plot.png)
+
+This plot compares per-day AOI mean NDVI for:
+
+- **All days**: every candidate day in the ERA5 time range
+- **Metafilter-selected days**: only days that pass the ERA5 temperature and precipitation rules
+
+The dashed gray and green lines show the average NDVI of each series.
+
+#### ERA5 drivers behind the selection
+
+![ERA5 driver plot](data/ndvi_comparison/era5_driver_plot.png)
+
+This plot shows the daily ERA5 driver variables used by the metafilter and highlights the selected days. It makes the filtering logic visible:
+
+- warm days pass the temperature rule
+- dry days pass the precipitation rule
+- only days passing both rules are forwarded to the Sentinel-2 comparison
+
+#### NDVI raster gallery
+
+![NDVI raster gallery](data/ndvi_comparison/ndvi_raster_gallery.png)
+
+This gallery compares representative selected and rejected NDVI rasters using a shared color scale. It is useful for visually checking whether the metafilter tends to keep greener, cleaner scenes and discard less useful ones.
+
+### What the summary report means
+
+The `ndvi_comparison_summary.json` file reports:
+
+- `candidate_days`: number of daily query windows considered for a strategy
+- `successful_days`: number of days that produced a usable NDVI raster
+- `error_days`: number of daily queries that did not return a usable raster
+- `mean_of_mean_ndvi`: average of the per-day AOI mean NDVI values
+- `median_of_mean_ndvi`: median of the per-day AOI mean NDVI values
+- `share_above_threshold`: share of successful days with AOI mean NDVI at or above `ndvi_threshold`
+- `best_day` / `best_day_mean_ndvi`: strongest daily NDVI result found for that strategy
+- `candidate_day_reduction`: how much the metafilter reduced the number of candidate days compared with baseline
+- `mean_ndvi_delta`: metafilter `mean_of_mean_ndvi` minus baseline `mean_of_mean_ndvi`
+- `share_above_threshold_delta`: metafilter `share_above_threshold` minus baseline `share_above_threshold`
+
+### How to read the example result
+
+In one Stockholm August 2024 run, the summary reported:
+
+- baseline: `31` candidate days, `12` successful days, `19` error days
+- metafilter: `4` candidate days, `2` successful days, `2` error days
+- `candidate_day_reduction`: `0.871`
+- `mean_of_mean_ndvi`: `0.148` for baseline and `0.1869` for metafilter
+- `mean_ndvi_delta`: `0.0389`
+- the same best day was retained in both strategies: `2024-08-13` with `best_day_mean_ndvi = 0.2932`
+
+This is the core usefulness claim of the project:
+
+- the metafilter reduced the number of candidate days by about `87%`
+- it increased the average NDVI of the retained series
+- it still preserved the best-scoring day in the month
+
+In that example, `share_above_threshold` stayed at `0.0` for both strategies because no successful day reached the reporting threshold of `0.6`. That does not invalidate the metafilter; it simply means the chosen AOI and month did not produce very high AOI-average NDVI values under that threshold.
+
+When reading `error_days`, keep in mind that the baseline currently queries every calendar day. Some of those days do not have a usable Sentinel-2 result for the AOI, so reducing `error_days` is also part of the practical value of the metafilter.
+
+---
+
 ## Directory Structure
 
 ```plaintext
