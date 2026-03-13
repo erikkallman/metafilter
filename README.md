@@ -118,6 +118,10 @@ python main.py
 
 This section shows how to interpret a completed run using the generated figures and `data/ndvi_comparison/ndvi_comparison_summary.json`.
 
+The goal of this example is simple: to test whether meteorological filtering with ERA5-Land can reduce the number of Sentinel-2 candidate days while still keeping the days that give the most useful NDVI results. In practice, it is trying to show that the metafilter works as a useful screening step rather than an arbitrary extra constraint.
+
+The conclusion we want to support with the figures and summary is also simple: the metafilter is useful if it narrows the search window, improves or preserves the NDVI quality of the retained scenes, and does not discard the best day in the period.
+
 ### Data used
 
 - **Meteorological data**: ERA5-Land hourly `2m_temperature` and `total_precipitation`, aggregated to daily AOI means.
